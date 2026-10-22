@@ -1,8 +1,69 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="AI Study Assistant",
-    page_icon="📚"
+# Professional UI styling for StudyMate AI
+st.markdown("""
+<style>
+    .stApp {
+        background-color: #F5F7FC;
+    }
+
+    .block-container {
+        max-width: 1050px;
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+    }
+
+    h1, h2, h3 {
+        color: #172554;
+    }
+
+    .hero {
+        background: linear-gradient(120deg, #102A56, #2563EB);
+        padding: 30px;
+        border-radius: 18px;
+        color: white;
+        margin-bottom: 24px;
+    }
+
+    .hero h1 {
+        color: white;
+        font-size: 2.3rem;
+        margin-bottom: 8px;
+    }
+
+    .hero p {
+        color: #E0EAFF;
+        font-size: 1.05rem;
+    }
+
+    div.stButton > button {
+        background: #2563EB;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+    }
+
+    div.stButton > button:hover {
+        background: #1D4ED8;
+        color: white;
+        border: none;
+    }
+
+    div[data-testid="stTextArea"] textarea,
+    div[data-testid="stTextInput"] input {
+        border-radius: 10px;
+    }
+
+    div[data-testid="stAlert"] {
+        border-radius: 12px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+    
 )
 
 st.title("📚 AI Study Assistant")
