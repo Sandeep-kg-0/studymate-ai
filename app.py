@@ -1,9 +1,14 @@
-import streamlit as st
 
-st.set_page_config( page_title="AI Study Assistant",
-    page_icon="📚"
+import streamlit as st
+from groq import Groq
+
+st.set_page_config(
+    page_title="StudyMate AI",
+    page_icon="📚",
+    layout="wide"
 )
 
+# ---------- PROFESSIONAL UI ----------
 st.markdown("""
 <style>
     .stApp {
@@ -51,7 +56,6 @@ st.markdown("""
     div.stButton > button:hover {
         background: #1D4ED8;
         color: white;
-        border: none;
     }
 
     div[data-testid="stTextArea"] textarea,
@@ -63,10 +67,11 @@ st.markdown("""
         border-radius: 12px;
     }
 </style>
-""", unsafe_allow_html=True )
+""", unsafe_allow_html=True)
+
 st.markdown("""
 <div class="hero">
-    <h1>📚 AI Study Assistant</h1>
+    <h1>📚 StudyMate AI</h1>
     <p>Your personal learning companion — study smarter,
     stay organized, and keep learning.</p>
 </div>
@@ -75,77 +80,219 @@ st.markdown("""
 st.subheader("What would you like to study today?")
 st.caption("Choose a tool below to get started.")
 
-task = st.selectbox(
-    "Choose a study tool",
-    ["Ask a Question", "Summarize Notes", "Generate Quiz"]
-)
+# ---------- GROQ AI FUNCTION ----------
+def get_ai_response(system_prompt, user_prompt, max_tokens=1200):
+    api_key = st.secrets.get("GROQ_API_KEY", "")
 
-
-import streamlit as st
-from groq import Groq
-
-# Put this inside your existing question-submit condition.
-if question and question.strip():
-    try:
-        client = Groq(
-            api_key=st.secrets["GROQ_API_KEY"]
+    if not api_key:
+        st.error(
+            "API key not found. Add GROQ_API_KEY "
+            "in your Streamlit app's Secrets settings."
         )
+        return None
 
-        with st.spinner("Thinking..."):
+    try:
+        client = Groq(api_key=api_key)
+
+        with st.spinner("StudyMate AI is thinking..."):
             response = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            "You are StudyMate AI, a helpful "
-                            "study assistant. Explain concepts "
-                            "clearly for college students."
-                        )
+                        "content": system_prompt
                     },
                     {
                         "role": "user",
-                        "content": question
+                        "content": user_prompt
                     }
                 ],
-                max_tokens=700,
+                max_tokens=max_tokens,
+                temperature=0.4
             )
 
-        answer = response.choices[0].message.content
-        st.markdown("### 📖 Answer")
-        st.write(answer)
+        return response.choices[0].message.content
 
-    except Exception as e:
+    except Exception:
         st.error(
-            "Unable to get an answer. Check your API "
-            "key, usage limits, and app logs."
+            "Unable to get an AI response. Check your API key, "
+            "Groq usage limits, model availability, and app logs."
+        )
+        return None
+
+
+# ---------- TOOL SELECTOR ----------
+task = st.selectbox(
+    "Choose a study tool",
+    [
+        "Ask a Question",
+        "Summarize Notes",
+        "Generate Quiz"
+    ]
+)
+
+st.divider()
+
+# ---------- 1. ASK A QUESTION ----------
+if task == "Ask a Question":
+    st.subheader("💬 Ask StudyMate AI")
+    st.write("Get clear, student-friendly explanations.")
+
+    with st.form("question_form"):
+        question = st.text_area(
+            "Enter your question",
+            placeholder="Example: Explain artificial intelligence in simple words.",
+            height=130
         )
 
-    question = st.text_area("Enter your question")
-    if st.button("Submit Question"):
+        submitted = st.form_submit_button(
+            "✨ Get Answer",
+            use_container_width=True
+        )
+
+    if submitted:
         if question.strip():
-            st.info(
-                "Your question: " + question +
-                "\n\nAI answering will be added next!"
+            answer = get_ai_response(
+                system_prompt=(
+                    "You are StudyMate AI, a helpful study assistant. "
+                    "Explain concepts clearly for college students. "
+                    "Use headings, examples, and simple language where "
+                    "appropriate. If you are unsure of a fact, say so."
+                ),
+                user_prompt=question.strip(),
+                max_tokens=1200
             )
+
+            if answer:
+                st.markdown("### 📖 Answer")
+                st.markdown(answer)
         else:
             st.warning("Please enter a question.")
 
+# ---------- 2. SUMMARIZE NOTES ----------
 elif task == "Summarize Notes":
-    notes = st.text_area("Paste your study notes")
-    if st.button("Summarize"):
-        if notes.strip():
-            st.write("Your notes:")
-            st.write(notes)
-            st.info("AI summarization will be added next!")
-        else:
-            st.warning("Please enter your notes.")
+    st.subheader("📚 Summarize Your Notes")
+    st.write("Turn lengthy study material into revision-friendly notes.")
 
-else:
-    topic = st.text_input("Enter a quiz topic")
-    if st.button("Generate Quiz"):
-        if topic.strip():
-            st.write("Quiz topic:", topic)
-            st.info("AI quiz generation will be added next!")
+    with st.form("summary_form"):
+        notes = st.text_area(
+            "Paste your study notes",
+            placeholder="Paste your textbook notes or class notes here...",
+            height=250
+        )
+
+        summary_style = st.selectbox(
+            "Summary style",
+            [
+                "Short summary",
+                "Detailed summary",
+                "Exam revision notes",
+                "Key points only"
+            ]
+        )
+
+        submitted = st.form_submit_button(
+            "✨ Summarize Notes",
+            use_container_width=True
+        )
+
+    if submitted:
+        if notes.strip():
+            summary = get_ai_response(
+                system_prompt=(
+                    "You are StudyMate AI, an academic note summarizer. "
+                    "Use only the supplied notes as the source for "
+                    "source-specific facts. Do not invent details. "
+                    "If something is unclear or missing, say so. "
+                    "Format the result in readable Markdown."
+                ),
+                user_prompt=(
+                    f"Create a {summary_style.lower()} from these notes. "
+                    "Preserve important terminology, definitions, "
+                    "formulas, and examples.\n\n"
+                    f"STUDY NOTES:\n{notes}"
+                ),
+                max_tokens=1800
+            )
+
+            if summary:
+                st.markdown("### 📝 Your Summary")
+                st.markdown(summary)
+
+                st.download_button(
+                    "⬇️ Download Summary",
+                    data=summary,
+                    file_name="studymate_summary.md",
+                    mime="text/markdown"
+                )
         else:
-            st.warning("Please enter a topic.")
+            st.warning("Please paste your study notes.")
+
+# ---------- 3. GENERATE QUIZ ----------
+else:
+    st.subheader("🧠 Generate a Practice Quiz")
+    st.write("Test your understanding with multiple-choice questions.")
+
+    with st.form("quiz_form"):
+        topic = st.text_input(
+            "Quiz topic",
+            placeholder="Example: Python functions"
+        )
+
+        num_questions = st.selectbox(
+            "Number of questions",
+            [5, 10, 15]
+        )
+
+        difficulty = st.selectbox(
+            "Difficulty",
+            ["Easy", "Medium", "Hard"]
+        )
+
+        submitted = st.form_submit_button(
+            "✨ Generate Quiz",
+            use_container_width=True
+        )
+
+    if submitted:
+        if topic.strip():
+            quiz = get_ai_response(
+                system_prompt=(
+                    "You are StudyMate AI, an educational quiz creator. "
+                    "Create accurate multiple-choice questions. "
+                    "Give four options labelled A, B, C, and D for "
+                    "each question. After all questions, provide an "
+                    "answer key with a brief explanation for each "
+                    "correct answer. Make sure the answer key matches "
+                    "the options. Use clear Markdown formatting."
+                ),
+                user_prompt=(
+                    f"Create {num_questions} multiple-choice questions "
+                    f"about: {topic.strip()}\n"
+                    f"Difficulty: {difficulty}\n\n"
+                    "Number each question. Include four options per "
+                    "question. Put the complete answer key and brief "
+                    "explanations at the end, after all questions."
+                ),
+                max_tokens=2500
+            )
+
+            if quiz:
+                st.markdown("### 📝 Your Practice Quiz")
+                st.markdown(quiz)
+
+                st.download_button(
+                    "⬇️ Download Quiz",
+                    data=quiz,
+                    file_name="studymate_quiz.md",
+                    mime="text/markdown"
+                )
+        else:
+            st.warning("Please enter a quiz topic.")
+
+# ---------- FOOTER ----------
+st.divider()
+st.caption(
+    "StudyMate AI • Built with Python, Streamlit, and Groq. "
+    "Always verify important academic information."
+)
