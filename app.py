@@ -80,7 +80,47 @@ task = st.selectbox(
     ["Ask a Question", "Summarize Notes", "Generate Quiz"]
 )
 
-if task == "Ask a Question":
+
+import streamlit as st
+from groq import Groq
+
+# Put this inside your existing question-submit condition.
+if question and question.strip():
+    try:
+        client = Groq(
+            api_key=st.secrets["GROQ_API_KEY"]
+        )
+
+        with st.spinner("Thinking..."):
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are StudyMate AI, a helpful "
+                            "study assistant. Explain concepts "
+                            "clearly for college students."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": question
+                    }
+                ],
+                max_tokens=700,
+            )
+
+        answer = response.choices[0].message.content
+        st.markdown("### 📖 Answer")
+        st.write(answer)
+
+    except Exception as e:
+        st.error(
+            "Unable to get an answer. Check your API "
+            "key, usage limits, and app logs."
+        )
+
     question = st.text_area("Enter your question")
     if st.button("Submit Question"):
         if question.strip():
