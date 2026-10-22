@@ -86,8 +86,8 @@ def get_ai_response(system_prompt, user_prompt, max_tokens=1200):
 
     if not api_key:
         st.error(
-            "API key not found. Add GROQ_API_KEY "
-            "in your Streamlit app's Secrets settings."
+            "Unable to get an AI response. Check your API key, "
+        "Groq usage limits, model availability, and app logs." 
         )
         return None
 
@@ -113,11 +113,8 @@ def get_ai_response(system_prompt, user_prompt, max_tokens=1200):
 
         return response.choices[0].message.content
 
-    except Exception:
-        st.error(
-            "Unable to get an AI response. Check your API key, "
-            "Groq usage limits, model availability, and app logs."
-        )
+    except Exception as e:
+        st.error(f"Groq error: {type(e).__name__}: {e}")    
         return None
 
 
