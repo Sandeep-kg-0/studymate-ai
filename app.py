@@ -1,5 +1,5 @@
-
 import streamlit as st
+import  json
 from groq import Groq
 
 st.set_page_config(
@@ -81,15 +81,34 @@ st.subheader("What would you like to study today?")
 st.caption("Choose a tool below to get started.")
 
 # ---------- GROQ AI FUNCTION ----------
+
 def get_ai_response(system_prompt, user_prompt, max_tokens=1200):
     api_key = st.secrets.get("GROQ_API_KEY", "")
 
     if not api_key:
-        st.error(
-            "Unable to get an AI response. Check your API key, "
-        "Groq usage limits, model availability, and app logs." 
-        )
+        st.error("GROQ_API_KEY is missing from Streamlit Secrets.")
         return None
+
+    try:
+        client = Groq(api_key=api_key)
+
+        with st.spinner("StudyMate AI is thinking..."):
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=max_tokens,
+                temperature=0.4
+            )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        st.error(f"Groq error: {type(e).__name__}: {e}")
+        return None
+
 
     try:
         client = Groq(api_key=api_key)
@@ -227,8 +246,14 @@ elif task == "Summarize Notes":
 
 # ---------- 3. GENERATE QUIZ ----------
 else:
-    st.subheader("🧠 Generate a Practice Quiz")
-    st.write("Test your understanding with multiple-choice questions.")
+    st.subheader("🧠 Interactive Practice Quiz")
+    st.write("Answer the questions and check your score.")
+
+    if "quiz_data" not in st.session_state:
+        st.session_state.quiz_data = None
+
+    if "quiz_topic" not in st.session_state:
+        st.session_state.quiz_topic = ""
 
     with st.form("quiz_form"):
         topic = st.text_input(
@@ -246,46 +271,159 @@ else:
             ["Easy", "Medium", "Hard"]
         )
 
-        submitted = st.form_submit_button(
+        generate = st.form_submit_button(
             "✨ Generate Quiz",
             use_container_width=True
         )
 
-    if submitted:
-        if topic.strip():
-            quiz = get_ai_response(
+    if generate:
+        if not topic.strip():
+            st.warning("Please enter a quiz topic.")
+        else:
+            raw_quiz = get_ai_response(
                 system_prompt=(
-                    "You are StudyMate AI, an educational quiz creator. "
-                    "Create accurate multiple-choice questions. "
-                    "Give four options labelled A, B, C, and D for "
-                    "each question. After all questions, provide an "
-                    "answer key with a brief explanation for each "
-                    "correct answer. Make sure the answer key matches "
-                    "the options. Use clear Markdown formatting."
+                    "You are an educational quiz generator. "
+                    "Return ONLY valid JSON, without Markdown fences. "
+                    "Use this exact structure: "
+                    '{"questions":[{"question":"Question text",'
+                    '"options":{"A":"Option A","B":"Option B",'
+                    '"C":"Option C","D":"Option D"},'
+                    '"answer":"A","explanation":"Why A is correct"}]}. '
+                    "The answer must be A, B, C, or D. "
+                    "Make sure each question has four options and "
+                    "one unambiguous correct answer."
                 ),
                 user_prompt=(
-                    f"Create {num_questions} multiple-choice questions "
-                    f"about: {topic.strip()}\n"
-                    f"Difficulty: {difficulty}\n\n"
-                    "Number each question. Include four options per "
-                    "question. Put the complete answer key and brief "
-                    "explanations at the end, after all questions."
+                    f"Create exactly {num_questions} multiple-choice "
+                    f"questions about {topic.strip()}. "
+                    f"Difficulty: {difficulty}. "
+                    "Return the result as valid JSON."
                 ),
-                max_tokens=2500
+                max_tokens=3500
             )
 
-            if quiz:
-                st.markdown("### 📝 Your Practice Quiz")
-                st.markdown(quiz)
+            if raw_quiz:
+                try:
+                    # Handle accidental Markdown fences.
+                    cleaned = raw_quiz.strip()
 
-                st.download_button(
-                    "⬇️ Download Quiz",
-                    data=quiz,
-                    file_name="studymate_quiz.md",
-                    mime="text/markdown"
+                    if cleaned.startswith("```"):
+                        cleaned = cleaned.split("\n", 1)[1]
+                        cleaned = cleaned.rsplit("```", 1)[0].strip()
+
+                    quiz_data = json.loads(cleaned)
+                    questions = quiz_data.get("questions", [])
+
+                    # Validate the AI-generated quiz.
+                    if len(questions) != num_questions:
+                        raise ValueError(
+                            "The AI returned the wrong number "
+                            "of questions. Please generate again."
+                        )
+
+                    for q in questions:
+                        if not all(
+                            key in q
+                            for key in [
+                                "question", "options",
+                                "answer", "explanation"
+                            ]
+                        ):
+                            raise ValueError(
+                                "A question is missing required fields."
+                            )
+
+                        if (
+                            set(q["options"].keys())
+                            != {"A", "B", "C", "D"}
+                            or q["answer"] not in {"A", "B", "C", "D"}
+                        ):
+                            raise ValueError(
+                                "A question has invalid options or answer."
+                            )
+
+                    st.session_state.quiz_data = questions
+                    st.session_state.quiz_topic = topic.strip()
+
+                except (json.JSONDecodeError, ValueError) as e:
+                    st.error(f"Could not prepare the quiz: {e}")
+                    st.session_state.quiz_data = None
+
+    # Display the generated quiz and calculate the score.
+    questions = st.session_state.quiz_data
+
+    if questions:
+        st.markdown(f"### 📝 Quiz: {st.session_state.quiz_topic}")
+
+        with st.form("answer_quiz_form"):
+            answers = []
+
+            for i, q in enumerate(questions):
+                st.markdown(f"**Question {i + 1}. {q['question']}**")
+
+                options = q["options"]
+                selected = st.radio(
+                    f"Choose your answer for question {i + 1}",
+                    options=["A", "B", "C", "D"],
+                    format_func=lambda key, opts=options: (
+                        f"{key}. {opts[key]}"
+                    ),
+                    index=None,
+                    key=f"quiz_answer_{i}"
                 )
-        else:
-            st.warning("Please enter a quiz topic.")
+                answers.append(selected)
+
+            submitted_quiz = st.form_submit_button(
+                "✅ Submit Answers",
+                use_container_width=True
+            )
+
+        if submitted_quiz:
+            score = sum(
+                1 for selected, q in zip(answers, questions)
+                if selected == q["answer"]
+            )
+
+            percentage = score / len(questions) * 100
+
+            st.markdown("## 📊 Your Results")
+            st.metric(
+                "Your Score",
+                f"{score} / {len(questions)}",
+                f"{percentage:.0f}%"
+            )
+            st.progress(percentage / 100)
+
+            if percentage >= 80:
+                st.success("Excellent work! You understand this topic well.")
+            elif percentage >= 50:
+                st.info("Good effort! Review the explanations below.")
+            else:
+                st.warning("Keep practising. Review each explanation.")
+
+            st.markdown("### 📖 Answer Review")
+
+            for i, (selected, q) in enumerate(
+                zip(answers, questions)
+            ):
+                correct = q["answer"]
+
+                if selected == correct:
+                    st.success(f"Question {i + 1}: Correct")
+                else:
+                    st.error(
+                        f"Question {i + 1}: Incorrect. "
+                        f"Correct answer: {correct}. "
+                        f"{q['options'][correct]}"
+                    )
+
+                st.write(q["explanation"])
+
+        if st.button("🔄 Generate Another Quiz"):
+            st.session_state.quiz_data = None
+            st.session_state.quiz_topic = ""
+            st.rerun()
+
 
 # ---------- FOOTER ----------
 st.divider()
