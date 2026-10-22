@@ -75,12 +75,6 @@ st.markdown("""
 st.subheader("What would you like to study today?")
 st.caption("Choose a tool below to get started.")
 
-    
-)
-
-st.title("📚 AI Study Assistant")
-st.write("Your personal learning companion!")
-
 task = st.selectbox(
     "Choose a study tool",
     ["Ask a Question", "Summarize Notes", "Generate Quiz"]
