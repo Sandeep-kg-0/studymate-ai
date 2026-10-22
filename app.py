@@ -1,7 +1,9 @@
 import streamlit as st
 
-st.set_page_config(
-# Professional UI styling for StudyMate AI
+st.set_page_config( page_title="AI Study Assistant",
+    page_icon="📚"
+)
+
 st.markdown("""
 <style>
     .stApp {
@@ -61,7 +63,17 @@ st.markdown("""
         border-radius: 12px;
     }
 </style>
+""", unsafe_allow_html=True )
+st.markdown("""
+<div class="hero">
+    <h1>📚 AI Study Assistant</h1>
+    <p>Your personal learning companion — study smarter,
+    stay organized, and keep learning.</p>
+</div>
 """, unsafe_allow_html=True)
+
+st.subheader("What would you like to study today?")
+st.caption("Choose a tool below to get started.")
 
     
 )
