@@ -1,17 +1,26 @@
-# StudyMate AI
+# StudyMate AI — AI-Powered Study Assistant
 
-An AI-powered study assistant for college students.
+StudyMate AI is an AI-powered learning assistant designed to help college students understand concepts, summarize study notes, and prepare for exams more efficiently.
 
 ## Features
-- Study Planner
-- AI Notes Helper
-- Quiz Generator
-- AI Doubt Solver
+
+- **AI Doubt Solver:** Ask questions and receive AI-generated explanations.
+- **AI Notes Summarizer:** Turn lengthy notes into concise summaries.
+- **Quiz Generator:** Generate multiple-choice quizzes and check your answers.
+- **Study Planner:** Help organize study sessions and exam preparation. *(Include this only if implemented.)*
 
 ## Technologies
-- React
-- JavaScript
-- AI integration
 
-## Goal
-Help students study smarter and prepare for exams.
+- Python
+- Streamlit
+- Groq API for AI integration
+- GitHub for version control
+
+## Project Goal
+
+To make studying more interactive, accessible, and efficient by using AI to support students with learning and exam preparation.
+
+## Links
+
+- **Live Demo:** Add your deployed Streamlit app URL.
+- **GitHub Repository:** https://github.com/Sandeep-kg-0/studymate-ai
